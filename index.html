@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App - Tampilan Diperbaiki</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --primary-dark: #121212;
+            --secondary-dark: #1e1e1e;
+            --primary-purple: #8a2be2;
+            --secondary-purple: #9370db;
+            --accent-purple: #6a0dad;
+            --text-color: #f0f0f0;
+            --error-color: #ff4d4d;
+            --success-color: #4caf50;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent-purple) 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background-color: rgba(30, 30, 30, 0.9);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(to right, var(--primary-purple), var(--accent-purple));
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+        }
+        
+        .tagline {
+            font-style: italic;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+        
+        .auth-container, .chat-container {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--secondary-purple);
+            font-weight: 500;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--primary-purple);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            font-size: 1rem;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: var(--secondary-purple);
+            background-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(138, 43, 226, 0.3);
+        }
+        
+        button {
+            background: linear-gradient(to right, var(--primary-purple), var(--accent-purple));
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error {
+            color: var(--error-color);
+            margin-top: 8px;
+            font-size: 0.9em;
+            padding: 8px;
+            background-color: rgba(255, 77, 77, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid var(--error-color);
+        }
+        
+        .success {
+            color: var(--success-color);
+            margin-top: 8px;
+            font-size: 0.9em;
+            padding: 8px;
+            background-color: rgba(76, 175, 80, 0.1);
+            border-radius: 6px;
+            border-left: 3px solid var(--success-color);
+        }
+        
+        .auth-links {
+            text-align: center;
+            margin-top: 15px;
+        }
+        
+        .auth-links a {
+            color: var(--secondary-purple);
+            text-decoration: none;
+            cursor: pointer;
+        }
+        
+        .auth-links a:hover {
+            color: var(--primary-purple);
+            text-decoration: underline;
+        }
+        
+        .user-info {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        /* Navigation Tabs */
+        .chat-nav {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 2px solid var(--primary-purple);
+        }
+        
+        .chat-nav button {
+            background: none;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 0;
+            flex: 1;
+        }
+        
+        .chat-nav button.active {
+            background: rgba(138, 43, 226, 0.2);
+            border-bottom: 2px solid var(--primary-purple);
+        }
+        
+        /* Chat Types */
+        .chat-type {
+            display: none;
+        }
+        
+        .chat-type.active {
+            display: block;
+        }
+        
+        /* Messages Container */
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .message {
+            padding: 10px;
+            border-radius: 8px;
+            background: linear-gradient(to right, rgba(138, 43, 226, 0.2), rgba(106, 13, 173, 0.2));
+            border-left: 3px solid var(--primary-purple);
+        }
+        
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.8em;
+            color: var(--secondary-purple);
+        }
+        
+        .username {
+            font-weight: 600;
+        }
+        
+        .message-content {
+            word-wrap: break-word;
+        }
+        
+        /* Send Form - Diperbaiki: tombol di bawah input */
+        .send-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .send-form input {
+            width: 100%;
+        }
+        
+        /* Search Section */
+        .search-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .search-form {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .search-form input {
+            flex: 1;
+        }
+        
+        /* Results Section */
+        .results-section {
+            margin-bottom: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .result-item {
+            padding: 10px;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .result-info {
+            flex: 1;
+        }
+        
+        .result-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Group Creation */
+        .group-creation {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        /* Audio Controls */
+        .audio-controls {
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+        }
+        
+        .audio-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .audio-btn {
+            background: linear-gradient(to right, var(--primary-purple), var(--accent-purple));
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: white;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                border-radius: 10px;
+            }
+            
+            h1 {
+                font-size: 1.7rem;
+            }
+            
+            .messages {
+                height: 250px;
+            }
+            
+            .chat-nav {
+                flex-wrap: wrap;
+            }
+            
+            .chat-nav button {
+                padding: 8px 10px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Chat App</h1>
+            <p class="tagline">Tampilan diperbaiki dengan fitur lengkap</p>
+        </header>
+        
+        <div id="authContainer" class="auth-container">
+            <div id="loginForm">
+                <h2>Masuk</h2>
+                <div class="form-group">
+                    <label for="loginUsername">Username</label>
+                    <input type="text" id="loginUsername" placeholder="Masukkan username">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Masukkan password">
+                </div>
+                <button id="btnLogin">Masuk</button>
+                <p id="loginError" class="error hidden"></p>
+                <div class="auth-links">
+                    <p>Belum punya akun? <a id="showRegister">Daftar di sini</a></p>
+                </div>
+            </div>
+            
+            <div id="registerForm" class="hidden">
+                <h2>Daftar</h2>
+                <div class="form-group">
+                    <label for="registerUsername">Username</label>
+                    <input type="text" id="registerUsername" placeholder="Pilih username">
+                    <small>Username akan digunakan untuk login dan ditampilkan di chat</small>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" placeholder="Buat password">
+                    <small>Minimal 6 karakter</small>
+                </div>
+                <button id="btnRegister">Daftar</button>
+                <p id="registerError" class="error hidden"></p>
+                <p id="registerSuccess" class="success hidden">Pendaftaran berhasil! Silakan masuk.</p>
+                <div class="auth-links">
+                    <p>Sudah punya akun? <a id="showLogin">Masuk di sini</a></p>
+                </div>
+            </div>
+        </div>
+        
+        <div id="chatContainer" class="chat-container hidden">
+            <div class="user-info">
+                <p>Anda masuk sebagai: <strong id="currentUsername"></strong></p>
+                <button id="btnLogout">Keluar</button>
+            </div>
+            
+            <!-- Navigation Tabs -->
+            <div class="chat-nav">
+                <button id="btnPublicChat" class="active">Chat Publik</button>
+                <button id="btnPrivateChat">Chat Private</button>
+                <button id="btnGroupChat">Grup</button>
+                <button id="btnSearch">Pencarian</button>
+            </div>
+            
+            <!-- Public Chat -->
+            <div id="publicChat" class="chat-type active">
+                <div class="messages" id="messagesContainer">
+                    <div class="message">
+                        <div class="message-header">
+                            <span class="username">System</span>
+                            <span class="time">Sekarang</span>
+                        </div>
+                        <div class="message-content">
+                            Selamat datang di chat! Pesan akan muncul di sini.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="send-form">
+                    <input type="text" id="messageInput" placeholder="Ketik pesan...">
+                    <button id="btnSend">Kirim</button>
+                </div>
+            </div>
+            
+            <!-- Private Chat -->
+            <div id="privateChat" class="chat-type">
+                <div class="messages" id="privateMessagesContainer">
+                    <div class="message">
+                        <div class="message-header">
+                            <span class="username">System</span>
+                            <span class="time">Sekarang</span>
+                        </div>
+                        <div class="message-content">
+                            Gunakan fitur pencarian untuk memulai percakapan private dengan pengguna lain.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="send-form">
+                    <input type="text" id="privateMessageInput" placeholder="Ketik pesan private...">
+                    <button id="btnSendPrivate">Kirim</button>
+                </div>
+            </div>
+            
+            <!-- Group Chat -->
+            <div id="groupChat" class="chat-type">
+                <div class="group-creation">
+                    <h3>Buat Grup Baru</h3>
+                    <div class="form-group">
+                        <input type="text" id="newGroupName" placeholder="Nama grup">
+                    </div>
+                    <button id="btnCreateGroup">Buat Grup</button>
+                </div>
+                
+                <div class="messages" id="groupMessagesContainer">
+                    <div class="message">
+                        <div class="message-header">
+                            <span class="username">System</span>
+                            <span class="time">Sekarang</span>
+                        </div>
+                        <div class="message-content">
+                            Gunakan fitur pencarian untuk menemukan dan bergabung dengan grup.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="send-form">
+                    <input type="text" id="groupMessageInput" placeholder="Ketik pesan grup...">
+                    <button id="btnSendGroup">Kirim</button>
+                </div>
+            </div>
+            
+            <!-- Search Section -->
+            <div id="searchSection" class="chat-type">
+                <div class="search-section">
+                    <h3>Cari Pengguna</h3>
+                    <div class="search-form">
+                        <input type="text" id="searchUsernameInput" placeholder="Masukkan username...">
+                        <button id="btnSearchUsername">Cari</button>
+                    </div>
+                </div>
+                
+                <div class="search-section">
+                    <h3>Cari Grup</h3>
+                    <div class="search-form">
+                        <input type="text" id="searchGroupInput" placeholder="Masukkan nama grup...">
+                        <button id="btnSearchGroup">Cari</button>
+                    </div>
+                </div>
+                
+                <div class="results-section" id="searchResultsContainer">
+                    <!-- Hasil pencarian akan muncul di sini -->
+                </div>
+            </div>
+            
+            <div class="audio-controls">
+                <p>Musik Latar</p>
+                <div class="audio-buttons">
+                    <button class="audio-btn" id="btnPlayPause">▶</button>
+                    <button class="audio-btn" id="btnStopMusic">■</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="backgroundMusic" loop></audio>
+
+    <script>
+        // Konfigurasi Firebase
+        const firebaseConfig = {
+            databaseURL: "https://xr-social-53646-default-rtdb.asia-southeast1.firebasedatabase.app"
+        };
+        
+        // Inisialisasi Firebase
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            } else {
+                firebase.app();
+            }
+        } catch (error) {
+            console.error("Error initializing Firebase:", error);
+            document.getElementById('loginError').textContent = "Error menginisialisasi aplikasi. Silakan refresh halaman.";
+            document.getElementById('loginError').classList.remove('hidden');
+        }
+        
+        const database = firebase.database();
+        
+        // Elemen DOM
+        const authContainer = document.getElementById('authContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        const loginForm = document.getElementById('loginForm');
+        const registerForm = document.getElementById('registerForm');
+        const showRegisterLink = document.getElementById('showRegister');
+        const showLoginLink = document.getElementById('showLogin');
+        const btnLogin = document.getElementById('btnLogin');
+        const btnRegister = document.getElementById('btnRegister');
+        const btnLogout = document.getElementById('btnLogout');
+        const btnSend = document.getElementById('btnSend');
+        const loginUsername = document.getElementById('loginUsername');
+        const loginPassword = document.getElementById('loginPassword');
+        const registerUsername = document.getElementById('registerUsername');
+        const registerPassword = document.getElementById('registerPassword');
+        const messageInput = document.getElementById('messageInput');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const loginError = document.getElementById('loginError');
+        const registerError = document.getElementById('registerError');
+        const registerSuccess = document.getElementById('registerSuccess');
+        const currentUsername = document.getElementById('currentUsername');
+        
+        // Elemen untuk fitur baru
+        const btnPublicChat = document.getElementById('btnPublicChat');
+        const btnPrivateChat = document.getElementById('btnPrivateChat');
+        const btnGroupChat = document.getElementById('btnGroupChat');
+        const btnSearch = document.getElementById('btnSearch');
+        const publicChat = document.getElementById('publicChat');
+        const privateChat = document.getElementById('privateChat');
+        const groupChat = document.getElementById('groupChat');
+        const searchSection = document.getElementById('searchSection');
+        
+        // Elemen untuk fitur pencarian
+        const searchUsernameInput = document.getElementById('searchUsernameInput');
+        const btnSearchUsername = document.getElementById('btnSearchUsername');
+        const searchGroupInput = document.getElementById('searchGroupInput');
+        const btnSearchGroup = document.getElementById('btnSearchGroup');
+        const searchResultsContainer = document.getElementById('searchResultsContainer');
+        
+        // Elemen untuk fitur private chat
+        const privateMessagesContainer = document.getElementById('privateMessagesContainer');
+        const privateMessageInput = document.getElementById('privateMessageInput');
+        const btnSendPrivate = document.getElementById('btnSendPrivate');
+        
+        // Elemen untuk fitur grup
+        const newGroupName = document.getElementById('newGroupName');
+        const btnCreateGroup = document.getElementById('btnCreateGroup');
+        const groupMessagesContainer = document.getElementById('groupMessagesContainer');
+        const groupMessageInput = document.getElementById('groupMessageInput');
+        const btnSendGroup = document.getElementById('btnSendGroup');
+        
+        // Elemen untuk kontrol musik
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const btnPlayPause = document.getElementById('btnPlayPause');
+        const btnStopMusic = document.getElementById('btnStopMusic');
+        
+        let isMusicPlaying = false;
+        let currentUser = null;
+        let currentChatType = 'public';
+        let selectedUser = null;
+        let selectedGroup = null;
+        
+        // Toggle antara form login dan register
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchAuthForm('register');
+        });
+        
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            switchAuthForm('login');
+        });
+        
+        function switchAuthForm(form) {
+            if (form === 'register') {
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+                registerError.classList.add('hidden');
+                registerSuccess.classList.add('hidden');
+            } else {
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+                loginError.classList.add('hidden');
+            }
+        }
+        
+        // Fungsi pendaftaran - Hanya Realtime Database
+        btnRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            const username = registerUsername.value.trim();
+            const password = registerPassword.value.trim();
+            
+            // Validasi input
+            if (!username || !password) {
+                showError(registerError, 'Username dan password harus diisi');
+                return;
+            }
+            
+            if (username.length < 3) {
+                showError(registerError, 'Username minimal 3 karakter');
+                return;
+            }
+            
+            if (password.length < 6) {
+                showError(registerError, 'Password minimal 6 karakter');
+                return;
+            }
+            
+            // Periksa apakah username sudah ada
+            database.ref('users').orderByChild('username').equalTo(username).once('value')
+                .then((snapshot) => {
+                    if (snapshot.exists()) {
+                        throw new Error('Username sudah digunakan. Silakan pilih username lain.');
+                    }
+                    
+                    // Buat user baru di database
+                    const newUserRef = database.ref('users').push();
+                    return newUserRef.set({
+                        username: username,
+                        password: password,
+                        createdAt: Date.now()
+                    });
+                })
+                .then(() => {
+                    // Pendaftaran berhasil
+                    registerError.classList.add('hidden');
+                    registerSuccess.classList.remove('hidden');
+                    
+                    // Reset form
+                    registerUsername.value = '';
+                    registerPassword.value = '';
+                    
+                    // Beralih ke form login setelah pendaftaran berhasil
+                    setTimeout(() => {
+                        switchAuthForm('login');
+                    }, 2000);
+                })
+                .catch((error) => {
+                    // Menangani error
+                    handleAuthError(error, registerError);
+                });
+        });
+        
+        // Fungsi login - Hanya Realtime Database
+        btnLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            const username = loginUsername.value.trim();
+            const password = loginPassword.value.trim();
+            
+            if (!username || !password) {
+                showError(loginError, 'Username dan password harus diisi');
+                return;
+            }
+            
+            // Cari user di database
+            database.ref('users').orderByChild('username').equalTo(username).once('value')
+                .then((snapshot) => {
+                    if (!snapshot.exists()) {
+                        throw new Error('Username tidak ditemukan.');
+                    }
+                    
+                    // Ambil data user
+                    let userData = null;
+                    let userId = null;
+                    
+                    snapshot.forEach((childSnapshot) => {
+                        userData = childSnapshot.val();
+                        userId = childSnapshot.key;
+                    });
+                    
+                    // Verifikasi password
+                    if (userData.password !== password) {
+                        throw new Error('Password salah.');
+                    }
+                    
+                    // Login berhasil
+                    loginError.classList.add('hidden');
+                    
+                    // Simpan info user yang login
+                    currentUser = {
+                        id: userId,
+                        username: userData.username
+                    };
+                    
+                    currentUsername.textContent = currentUser.username;
+                    
+                    // Tampilkan chat container
+                    authContainer.classList.add('hidden');
+                    chatContainer.classList.remove('hidden');
+                    
+                    // Muat pesan
+                    loadMessages();
+                })
+                .catch((error) => {
+                    // Menangani error
+                    handleAuthError(error, loginError);
+                });
+        });
+        
+        // Fungsi logout
+        btnLogout.addEventListener('click', () => {
+            // Reset state
+            currentUser = null;
+            selectedUser = null;
+            selectedGroup = null;
+            loginUsername.value = '';
+            loginPassword.value = '';
+            
+            // Kembali ke auth container
+            chatContainer.classList.add('hidden');
+            authContainer.classList.remove('hidden');
+            switchAuthForm('login');
+            
+            // Hentikan musik jika sedang diputar
+            if (isMusicPlaying) {
+                stopMusic();
+            }
+        });
+        
+        // Fungsi untuk beralih antara jenis chat
+        btnPublicChat.addEventListener('click', () => switchChatType('public'));
+        btnPrivateChat.addEventListener('click', () => switchChatType('private'));
+        btnGroupChat.addEventListener('click', () => switchChatType('group'));
+        btnSearch.addEventListener('click', () => switchChatType('search'));
+        
+        function switchChatType(type) {
+            // Nonaktifkan semua tab
+            document.querySelectorAll('.chat-nav button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            // Sembunyikan semua jenis chat
+            document.querySelectorAll('.chat-type').forEach(chat => {
+                chat.classList.remove('active');
+            });
+            
+            // Aktifkan tab yang dipilih
+            if (type === 'public') {
+                btnPublicChat.classList.add('active');
+                publicChat.classList.add('active');
+                currentChatType = 'public';
+            } else if (type === 'private') {
+                btnPrivateChat.classList.add('active');
+                privateChat.classList.add('active');
+                currentChatType = 'private';
+            } else if (type === 'group') {
+                btnGroupChat.classList.add('active');
+                groupChat.classList.add('active');
+                currentChatType = 'group';
+            } else if (type === 'search') {
+                btnSearch.classList.add('active');
+                searchSection.classList.add('active');
+                currentChatType = 'search';
+                
+                // Reset hasil pencarian
+                searchResultsContainer.innerHTML = '';
+            }
+        }
+        
+        // Fungsi kirim pesan public
+        btnSend.addEventListener('click', sendPublicMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendPublicMessage();
+            }
+        });
+        
+        function sendPublicMessage() {
+            const messageText = messageInput.value.trim();
+            
+            if (!messageText || !currentUser) return;
+            
+            // Simpan pesan ke database
+            database.ref('messages').push({
+                userId: currentUser.id,
+                username: currentUser.username,
+                text: messageText,
+                timestamp: Date.now()
+            })
+            .then(() => {
+                messageInput.value = '';
+            })
+            .catch((error) => {
+                console.error('Error sending message:', error);
+            });
+        }
+        
+        // Fungsi untuk mengirim pesan private
+        btnSendPrivate.addEventListener('click', sendPrivateMessage);
+        privateMessageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendPrivateMessage();
+            }
+        });
+        
+        function sendPrivateMessage() {
+            const messageText = privateMessageInput.value.trim();
+            
+            if (!messageText || !selectedUser) {
+                alert('Pilih pengguna terlebih dahulu melalui fitur pencarian');
+                return;
+            }
+            
+            if (!currentUser) return;
+            
+            // Buat ID percakapan yang unik antara dua pengguna
+            const chatId = [currentUser.id, selectedUser.id].sort().join('_');
+            
+            // Simpan pesan ke database
+            database.ref('privateMessages/' + chatId).push({
+                senderId: currentUser.id,
+                receiverId: selectedUser.id,
+                text: messageText,
+                timestamp: Date.now()
+            })
+            .then(() => {
+                privateMessageInput.value = '';
+            })
+            .catch((error) => {
+                console.error('Error sending private message:', error);
+            });
+        }
+        
+        // Fungsi untuk mencari pengguna
+        btnSearchUsername.addEventListener('click', searchUsers);
+        
+        function searchUsers() {
+            const searchTerm = searchUsernameInput.value.trim().toLowerCase();
+            
+            if (!searchTerm) return;
+            
+            searchResultsContainer.innerHTML = '<p>Mencari pengguna...</p>';
+            
+            database.ref('users').once('value')
+                .then((snapshot) => {
+                    searchResultsContainer.innerHTML = '<h4>Hasil Pencarian Pengguna:</h4>';
+                    
+                    if (!currentUser) return;
+                    
+                    let found = false;
+                    
+                    snapshot.forEach((childSnapshot) => {
+                        const userData = childSnapshot.val();
+                        const userId = childSnapshot.key;
+                        
+                        // Skip pengguna saat ini
+                        if (userId === currentUser.id) return;
+                        
+                        if (userData.username.toLowerCase().includes(searchTerm)) {
+                            found = true;
+                            const resultItem = document.createElement('div');
+                            resultItem.classList.add('result-item');
+                            resultItem.innerHTML = `
+                                <div class="result-info">
+                                    <strong>${userData.username}</strong>
+                                </div>
+                                <div class="result-actions">
+                                    <button class="btn-start-chat" data-uid="${userId}" data-username="${userData.username}">Mulai Chat</button>
+                                </div>
+                            `;
+                            searchResultsContainer.appendChild(resultItem);
+                        }
+                    });
+                    
+                    if (!found) {
+                        searchResultsContainer.innerHTML += '<p>Tidak ada pengguna ditemukan</p>';
+                    }
+                    
+                    // Tambahkan event listener untuk tombol mulai chat
+                    document.querySelectorAll('.btn-start-chat').forEach(button => {
+                        button.addEventListener('click', (e) => {
+                            const uid = e.target.getAttribute('data-uid');
+                            const username = e.target.getAttribute('data-username');
+                            selectUser({ id: uid, username });
+                        });
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error searching users:', error);
+                    searchResultsContainer.innerHTML = '<p class="error">Error saat mencari pengguna</p>';
+                });
+        }
+        
+        // Fungsi untuk memilih pengguna untuk chat private
+        function selectUser(user) {
+            selectedUser = user;
+            alert(`Anda sekarang dapat mengobrol dengan ${user.username} di tab Chat Private`);
+            
+            // Beralih ke tab chat private
+            switchChatType('private');
+            
+            // Muat pesan private
+            loadPrivateMessages(user.id);
+        }
+        
+        // Fungsi untuk memuat pesan private
+        function loadPrivateMessages(otherUserId) {
+            if (!currentUser) return;
+            
+            // Buat ID percakapan yang unik antara dua pengguna
+            const chatId = [currentUser.id, otherUserId].sort().join('_');
+            
+            database.ref('privateMessages/' + chatId).orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+                privateMessagesContainer.innerHTML = '';
+                
+                if (snapshot.numChildren() === 0) {
+                    privateMessagesContainer.innerHTML = '<div class="message"><div class="message-content">Belum ada pesan. Mulai percakapan!</div></div>';
+                    return;
+                }
+                
+                const messages = [];
+                
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    message.id = childSnapshot.key;
+                    messages.push(message);
+                });
+                
+                // Urutkan pesan berdasarkan timestamp
+                messages.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Tampilkan pesan
+                messages.forEach((message) => {
+                    displayPrivateMessage(message);
+                });
+                
+                // Scroll ke bawah
+                privateMessagesContainer.scrollTop = privateMessagesContainer.scrollHeight;
+            });
+        }
+        
+        // Fungsi untuk menampilkan pesan private
+        function displayPrivateMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const isCurrentUser = message.senderId === currentUser.id;
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.classList.add('message-header');
+            
+            const usernameElement = document.createElement('span');
+            usernameElement.classList.add('username');
+            usernameElement.textContent = isCurrentUser ? 'Anda' : selectedUser.username;
+            
+            const timeElement = document.createElement('span');
+            timeElement.classList.add('time');
+            timeElement.textContent = formatTime(message.timestamp);
+            
+            messageHeader.appendChild(usernameElement);
+            messageHeader.appendChild(timeElement);
+            
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            messageContent.textContent = message.text;
+            
+            messageElement.appendChild(messageHeader);
+            messageElement.appendChild(messageContent);
+            
+            privateMessagesContainer.appendChild(messageElement);
+        }
+        
+        // Fungsi untuk membuat grup
+        btnCreateGroup.addEventListener('click', createGroup);
+        
+        function createGroup() {
+            const groupName = newGroupName.value.trim();
+            
+            if (!groupName) {
+                alert('Nama grup harus diisi');
+                return;
+            }
+            
+            if (!currentUser) return;
+            
+            // Buat grup baru
+            const newGroupRef = database.ref('groups').push();
+            newGroupRef.set({
+                name: groupName,
+                createdBy: currentUser.id,
+                createdAt: Date.now()
+            })
+            .then(() => {
+                // Tambahkan pembuat grup sebagai admin
+                return database.ref('groupMembers/' + newGroupRef.key + '/' + currentUser.id).set({
+                    role: 'admin',
+                    joinedAt: Date.now()
+                });
+            })
+            .then(() => {
+                newGroupName.value = '';
+                alert('Grup berhasil dibuat!');
+            })
+            .catch((error) => {
+                console.error('Error creating group:', error);
+                alert('Error membuat grup: ' + error.message);
+            });
+        }
+        
+        // Fungsi untuk mencari grup
+        btnSearchGroup.addEventListener('click', searchGroups);
+        
+        function searchGroups() {
+            const searchTerm = searchGroupInput.value.trim().toLowerCase();
+            
+            if (!searchTerm) return;
+            
+            searchResultsContainer.innerHTML = '<p>Mencari grup...</p>';
+            
+            database.ref('groups').once('value')
+                .then((snapshot) => {
+                    searchResultsContainer.innerHTML += '<h4>Hasil Pencarian Grup:</h4>';
+                    
+                    if (!currentUser) return;
+                    
+                    let found = false;
+                    
+                    snapshot.forEach((childSnapshot) => {
+                        const groupData = childSnapshot.val();
+                        const groupId = childSnapshot.key;
+                        
+                        if (groupData.name.toLowerCase().includes(searchTerm)) {
+                            found = true;
+                            const resultItem = document.createElement('div');
+                            resultItem.classList.add('result-item');
+                            
+                            // Periksa apakah pengguna sudah menjadi anggota
+                            database.ref('groupMembers/' + groupId + '/' + currentUser.id).once('value')
+                                .then((memberSnapshot) => {
+                                    const isMember = memberSnapshot.exists();
+                                    
+                                    resultItem.innerHTML = `
+                                        <div class="result-info">
+                                            <strong>${groupData.name}</strong>
+                                            <p>Dibuat oleh: ${groupData.createdBy === currentUser.id ? 'Anda' : 'Unknown'}</p>
+                                        </div>
+                                        <div class="result-actions">
+                                            ${isMember ? 
+                                                `<button class="btn-open-group" data-gid="${groupId}" data-name="${groupData.name}">Buka</button>` : 
+                                                `<button class="btn-join-group" data-gid="${groupId}" data-name="${groupData.name}">Minta Gabung</button>`
+                                            }
+                                        </div>
+                                    `;
+                                    
+                                    searchResultsContainer.appendChild(resultItem);
+                                    
+                                    // Tambahkan event listener
+                                    if (isMember) {
+                                        resultItem.querySelector('.btn-open-group').addEventListener('click', (e) => {
+                                            const gid = e.target.getAttribute('data-gid');
+                                            const name = e.target.getAttribute('data-name');
+                                            selectGroup({ id: gid, name });
+                                        });
+                                    } else {
+                                        resultItem.querySelector('.btn-join-group').addEventListener('click', (e) => {
+                                            const gid = e.target.getAttribute('data-gid');
+                                            const name = e.target.getAttribute('data-name');
+                                            requestToJoinGroup({ id: gid, name });
+                                        });
+                                    }
+                                });
+                        }
+                    });
+                    
+                    setTimeout(() => {
+                        if (!found) {
+                            searchResultsContainer.innerHTML += '<p>Tidak ada grup ditemukan</p>';
+                        }
+                    }, 1000);
+                })
+                .catch((error) => {
+                    console.error('Error searching groups:', error);
+                    searchResultsContainer.innerHTML = '<p class="error">Error saat mencari grup</p>';
+                });
+        }
+        
+        // Fungsi untuk meminta bergabung ke grup
+        function requestToJoinGroup(group) {
+            if (!currentUser) return;
+            
+            // Kirim permintaan bergabung
+            database.ref('groupJoinRequests/' + group.id + '/' + currentUser.id).set({
+                username: currentUser.username,
+                requestedAt: Date.now(),
+                status: 'pending'
+            })
+            .then(() => {
+                alert('Permintaan bergabung telah dikirim ke admin grup');
+            })
+            .catch((error) => {
+                console.error('Error requesting to join group:', error);
+                alert('Error mengirim permintaan: ' + error.message);
+            });
+        }
+        
+        // Fungsi untuk memilih grup
+        function selectGroup(group) {
+            selectedGroup = group;
+            alert(`Anda sekarang dapat mengobrol di grup ${group.name} di tab Grup`);
+            
+            // Beralih ke tab grup
+            switchChatType('group');
+            
+            // Muat pesan grup
+            loadGroupMessages(group.id);
+        }
+        
+        // Fungsi untuk mengirim pesan grup
+        btnSendGroup.addEventListener('click', sendGroupMessage);
+        groupMessageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendGroupMessage();
+            }
+        });
+        
+        function sendGroupMessage() {
+            const messageText = groupMessageInput.value.trim();
+            
+            if (!messageText || !selectedGroup) {
+                alert('Pilih grup terlebih dahulu melalui fitur pencarian');
+                return;
+            }
+            
+            if (!currentUser) return;
+            
+            // Periksa apakah pengguna adalah anggota grup
+            database.ref('groupMembers/' + selectedGroup.id + '/' + currentUser.id).once('value')
+                .then((snapshot) => {
+                    if (snapshot.exists()) {
+                        // Simpan pesan ke database
+                        return database.ref('groupMessages/' + selectedGroup.id).push({
+                            senderId: currentUser.id,
+                            text: messageText,
+                            timestamp: Date.now()
+                        });
+                    } else {
+                        throw new Error('Anda bukan anggota grup ini');
+                    }
+                })
+                .then(() => {
+                    groupMessageInput.value = '';
+                })
+                .catch((error) => {
+                    console.error('Error sending group message:', error);
+                    alert(error.message);
+                });
+        }
+        
+        // Fungsi untuk memuat pesan grup
+        function loadGroupMessages(groupId) {
+            database.ref('groupMessages/' + groupId).orderByChild('timestamp').limitToLast(50).on('value', (snapshot) => {
+                groupMessagesContainer.innerHTML = '';
+                
+                if (snapshot.numChildren() === 0) {
+                    groupMessagesContainer.innerHTML = '<div class="message"><div class="message-content">Belum ada pesan di grup ini. Mulai percakapan!</div></div>';
+                    return;
+                }
+                
+                const messages = [];
+                
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    message.id = childSnapshot.key;
+                    messages.push(message);
+                });
+                
+                // Urutkan pesan berdasarkan timestamp
+                messages.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Dapatkan info pengguna untuk setiap pesan
+                const userPromises = messages.map(message => {
+                    return database.ref('users/' + message.senderId).once('value')
+                        .then((userSnapshot) => {
+                            return {
+                                message: message,
+                                username: userSnapshot.val() ? userSnapshot.val().username : 'Unknown'
+                            };
+                        });
+                });
+                
+                Promise.all(userPromises)
+                    .then((messagesWithUsers) => {
+                        // Tampilkan pesan
+                        messagesWithUsers.forEach((item) => {
+                            displayGroupMessage(item.message, item.username);
+                        });
+                        
+                        // Scroll ke bawah
+                        groupMessagesContainer.scrollTop = groupMessagesContainer.scrollHeight;
+                    })
+                    .catch((error) => {
+                        console.error('Error loading user data:', error);
+                    });
+            });
+        }
+        
+        // Fungsi untuk menampilkan pesan grup
+        function displayGroupMessage(message, username) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const isCurrentUser = message.senderId === currentUser.id;
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.classList.add('message-header');
+            
+            const usernameElement = document.createElement('span');
+            usernameElement.classList.add('username');
+            usernameElement.textContent = isCurrentUser ? 'Anda' : username;
+            
+            const timeElement = document.createElement('span');
+            timeElement.classList.add('time');
+            timeElement.textContent = formatTime(message.timestamp);
+            
+            messageHeader.appendChild(usernameElement);
+            messageHeader.appendChild(timeElement);
+            
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            messageContent.textContent = message.text;
+            
+            messageElement.appendChild(messageHeader);
+            messageElement.appendChild(messageContent);
+            
+            groupMessagesContainer.appendChild(messageElement);
+        }
+        
+        // Memuat pesan public dari database
+        function loadMessages() {
+            database.ref('messages').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
+                // Hapus pesan sistem default jika ada pesan lain
+                if (snapshot.numChildren() > 0) {
+                    messagesContainer.innerHTML = '';
+                }
+                
+                snapshot.forEach((childSnapshot) => {
+                    const message = childSnapshot.val();
+                    displayMessage(message);
+                });
+                
+                // Scroll ke bawah
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
+        }
+        
+        // Menampilkan pesan public
+        function displayMessage(message) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const messageHeader = document.createElement('div');
+            messageHeader.classList.add('message-header');
+            
+            const usernameElement = document.createElement('span');
+            usernameElement.classList.add('username');
+            usernameElement.textContent = message.username;
+            
+            const timeElement = document.createElement('span');
+            timeElement.classList.add('time');
+            timeElement.textContent = formatTime(message.timestamp);
+            
+            messageHeader.appendChild(usernameElement);
+            messageHeader.appendChild(timeElement);
+            
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            messageContent.textContent = message.text;
+            
+            messageElement.appendChild(messageHeader);
+            messageElement.appendChild(messageContent);
+            
+            messagesContainer.appendChild(messageElement);
+        }
+        
+        // Format waktu
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            // Jika kurang dari 1 menit yang lalu
+            if (diff < 60000) {
+                return 'Baru saja';
+            }
+            
+            // Jika hari ini
+            if (date.toDateString() === now.toDateString()) {
+                return date.toLocaleTimeString('id-ID', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+            
+            // Jika bukan hari ini
+            return date.toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Fungsi untuk mengontrol musik
+        function setupMusicControls() {
+            backgroundMusic.loop = true;
+            backgroundMusic.volume = 0.5;
+            
+            // Daftarkan event listeners
+            btnPlayPause.addEventListener('click', togglePlayPause);
+            btnStopMusic.addEventListener('click', stopMusic);
+            
+            backgroundMusic.addEventListener('play', () => {
+                isMusicPlaying = true;
+                btnPlayPause.textContent = '❚❚';
+            });
+            
+            backgroundMusic.addEventListener('pause', () => {
+                isMusicPlaying = false;
+                btnPlayPause.textContent = '▶';
+            });
+            
+            // Setel sumber musik
+            backgroundMusic.src = 'https://files.catbox.moe/c4s32v.mp3';
+        }
+        
+        function togglePlayPause() {
+            if (isMusicPlaying) {
+                backgroundMusic.pause();
+            } else {
+                backgroundMusic.play().catch(error => {
+                    console.error('Error memutar musik:', error);
+                });
+            }
+        }
+        
+        function stopMusic() {
+            backgroundMusic.pause();
+            backgroundMusic.currentTime = 0;
+            isMusicPlaying = false;
+            btnPlayPause.textContent = '▶';
+        }
+        
+        // Fungsi untuk menampilkan error
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+        
+        // Handle error autentikasi
+        function handleAuthError(error, element) {
+            let errorMessage = 'Terjadi kesalahan. Silakan coba lagi.';
+            
+            if (typeof error === 'string') {
+                errorMessage = error;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            showError(element, errorMessage);
+        }
+        
+        // Inisialisasi
+        setupMusicControls();
+    </script>
+</body>
+</html>
